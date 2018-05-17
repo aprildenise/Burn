@@ -29,7 +29,7 @@ public class PlayerController : MonoBehaviour {
         float inputX = Input.GetAxisRaw("Horizontal");
         float inputY = Input.GetAxisRaw("Vertical");
         //Burn button
-        //pause and unpause button
+        //Pause button
 
         //Check for movement input
         if (Mathf.Abs(inputX) + Mathf.Abs(inputY) > 0 && isPaused == false)
