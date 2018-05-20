@@ -9,15 +9,24 @@ using UnityEngine;
  */
 public class ActionField : MonoBehaviour {
 
+
+    //Global variables
+    public Transform player;
+
+    Vector3 center; //the center of the action field (player's position)
     private float fieldHeight;
     private float fieldWidth;
-    public Transform player;
-    Vector3 center;
+    private float fieldX; //the x coordinate of the top left corner of the action field
+    private float fieldY; //the y coordinate of the top left corner of the action field
 
     int numGroundSprites; //current number of ground sprites
     int maxGroundSprites; //max number of ground sprites
     int maxGroundSpritesX; //max number of ground sprites on the X field
     int maxGroundSpritesY; //max number of ground sprites on the Y field
+    GroundSprite[,] groundSprites;
+
+    float sizeOfSprite = 0.32f;
+
 
 	// Use this for initialization
 	void Start () {
@@ -25,12 +34,22 @@ public class ActionField : MonoBehaviour {
         //initialize the action field
         FindFieldHeight();
         FindFieldWidth();
+        fieldX = ((fieldWidth)) / 100 * -1;
+        fieldY = ((fieldHeight)) / 100;
 
         //initialize ground sprite array and ground
-        maxGroundSprites = (int)(fieldHeight * fieldWidth) / 32;
-        maxGroundSpritesX = (int)fieldHeight / 32;
-        maxGroundSpritesY = (int)fieldWidth / 32;
-        GroundSprite[,] groundSprites = new GroundSprite[maxGroundSpritesY, maxGroundSpritesX];
+        maxGroundSprites = (int)((fieldHeight * fieldWidth) / 32f);
+        maxGroundSpritesX = (int)(fieldWidth / 32f) * 2;
+        maxGroundSpritesY = (int)(fieldHeight / 32f) * 2;
+
+        Debug.Log("maxGroundSpritesX: " + maxGroundSpritesX);
+        Debug.Log("maxGroundSpritesY: " + maxGroundSpritesY);
+        Debug.Log("Fieldheight: " + fieldHeight);
+        Debug.Log("fieldwidth: " + fieldWidth);
+
+        groundSprites = new GroundSprite[maxGroundSpritesY, maxGroundSpritesX];
+        InitializeGroundSprites();
+
 
 
 	}
@@ -40,8 +59,12 @@ public class ActionField : MonoBehaviour {
 	// Update is called once per frame
 	void Update () {
         center = player.position; //true center of the field
-        Debug.Log("Action field coordinates: " + center);
-	}
+
+        //Update the X and Y coordinates of the action field
+        fieldX = center.x - (fieldWidth / 2);
+        fieldY = center.y + (fieldHeight / 2);
+
+    }
 
 
 
@@ -67,6 +90,38 @@ public class ActionField : MonoBehaviour {
             }
         }
         
+    }
+
+
+    /* Spawn ground sprite game objects within the action field at start
+     */
+    private void InitializeGroundSprites()
+    {
+        //loop through the ground array to create ground sprites
+        float offsetX = sizeOfSprite;
+        float offsetY = sizeOfSprite;
+        for (int i = 0; i < maxGroundSpritesY; i++)
+        {
+            for (int j = 0; j < maxGroundSpritesX; j++)
+            {
+                //add sprites to the action field
+                if (groundSprites[i,j] == null) //if there is no groundSprite already in this index
+                {
+
+                    //find the position of where the sprite should go, according to the center
+                    Vector3 groundPosition = center;
+                    groundPosition.x = offsetX + fieldX;
+                    groundPosition.y = offsetY + fieldY;
+                    offsetX += sizeOfSprite;
+
+                    //create the new sprite
+                    groundSprites[i, j] = new GroundSprite();
+                    groundSprites[i,j].NewGroundSprite(groundPosition);
+                }
+            }
+            offsetX = sizeOfSprite;
+            offsetY -= sizeOfSprite;
+        }
     }
 
 
