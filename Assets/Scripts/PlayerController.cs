@@ -20,7 +20,7 @@ public class PlayerController : MonoBehaviour {
     // Use this for initialization
     void Start () {
         player = GetComponent<Rigidbody2D>();
-        moveSpeed = 5.0f;
+        moveSpeed = 3.0f;
 	}
 	
 	// Update is called once per frame

@@ -16,8 +16,10 @@ public class ActionField : MonoBehaviour {
     Vector3 center; //the center of the action field (player's position)
     private float fieldHeight;
     private float fieldWidth;
-    private float fieldX; //the x coordinate of the top left corner of the action field
-    private float fieldY; //the y coordinate of the top left corner of the action field
+    private float leftField;
+    private float rightField;
+    private float topField;
+    private float bottomField;
     private Vector3 field; //Vector3 coordinates of the top left corner of the action field
 
     int numGroundSprites; //current number of ground sprites
@@ -29,14 +31,20 @@ public class ActionField : MonoBehaviour {
     float sizeOfSprite = 0.32f;
 
 
+    //bool tester = false;
+
+
 	// Use this for initialization
 	void Start () {
 
         //initialize the action field
         FindFieldHeight();
         FindFieldWidth();
-        fieldX = ((fieldWidth)) / 100 * -1;
-        fieldY = ((fieldHeight)) / 100;
+        leftField = ((fieldWidth)) / 100 * -1;
+        topField = ((fieldHeight)) / 100;
+        field = new Vector3(leftField, topField, 0);
+
+        //Debug.Log("field: " + field);
 
         //initialize ground sprite array and ground
         maxGroundSprites = (int)((fieldHeight * fieldWidth) / 32f);
@@ -52,18 +60,21 @@ public class ActionField : MonoBehaviour {
 
 
 	// Update is called once per frame
-	void LateUpdate () {
+	void Update () {
         center = player.position; //true center of the field
 
         //Update the X and Y coordinates of the action field
-        fieldX = center.x - ((fieldWidth)) / 100 * -1;
-        fieldY = center.y + ((fieldHeight)) / 100;
-        field = new Vector3(fieldX, fieldY, 0);
+        leftField = center.x - ((fieldWidth)) / 100;
+        rightField = center.x + ((fieldWidth)) / 100;
+        topField = center.y + ((fieldHeight)) / 100;
+        bottomField = center.y - ((fieldHeight)) / 100;
+        field = new Vector3(leftField, topField, 0);
 
-        Debug.Log("field: " + field);
+        //Debug.Log("field: " + field);
 
         //Update the ground sprites within the action field
         UpdateGroundSprites();
+
 
     }
 
@@ -99,10 +110,12 @@ public class ActionField : MonoBehaviour {
                 {
                     //Not within the action field
                     //Delete the ground sprite and reposition it within the field
+                    //Debug.Log("Need to repo sprite at: " + groundSprites[i,j].position);
                     Vector3 newPosition = RepoGroundSprite(groundSprites[i, j].position);
                     groundSprites[i, j].DestroyGroundSprite();
                     groundSprites[i, j].NewGroundSprite(newPosition);
-                    Debug.Log("New ground field placed");
+                    //Debug.Log("New sprite placed at: " + groundSprites[i,j].position);
+                    //tester = true;
                 }
             }
         }
@@ -117,23 +130,22 @@ public class ActionField : MonoBehaviour {
      */
     private bool WithinActionField(Vector3 sprite)
     {
-        //check if the x coordinate of the sprite is within (both sides) of the field
-        if (sprite.x < fieldX)
+        if (sprite.x < leftField)
         {
             //sprite is beyond the left side of the field
             return false;
         }
-        else if (sprite.x > (center.x + ((fieldWidth)) / 100 * -1))
+        else if (sprite.x > rightField)
         {
             //sprite is beyond the right side of the field
             return false;
         }
-        else if (sprite.y > fieldY)
+        else if (sprite.y > topField)
         {
             //sprite is beyond the top side of the field
             return false;
         }
-        else if (sprite.y < (center.y - ((fieldHeight)) / 100))
+        else if (sprite.y < bottomField)
         {
             //sprite is beyond the bottom side of the field
             return false;
@@ -154,27 +166,36 @@ public class ActionField : MonoBehaviour {
     {
         Vector3 newPosition = sprite;
         //Find where the sprite needs to be repositioned
-        if (sprite.x < fieldX)
+        if (sprite.x < leftField)
         {
             //sprite is beyond the left side of the field, can be put on the right side of the field
-            sprite.x = (center.x + ((fieldWidth)) / 100 * -1); 
+            newPosition.x = rightField;
         }
-        if (sprite.x > (center.x + ((fieldWidth)) / 100 * -1))
+        else if (sprite.x > (center.x + ((fieldWidth)) / 100))
         {
             //sprite is beyond the right side of the field, can be put on the left side of the field
-            sprite.x = fieldX;
+            newPosition.x = leftField;
         }
-        if (sprite.y < (center.y - ((fieldHeight)) / 100))
+        else
+        {
+            //nothing for now
+        }
+        if (sprite.y < bottomField)
         {
             //sprite is beyond the bottom side of the field, can be put on the top side of the field
-            sprite.y = fieldY;
+            newPosition.y = topField;
         }
-        if (sprite.y > fieldY)
+        else if (sprite.y > topField)
         {
             //sprite is beyond the top side of the field, can be put on the bottom side of the field
-            sprite.y = (center.y - ((fieldHeight)) / 100);
+            newPosition.y = bottomField;
+        }
+        else
+        {
+            //nothing for now
         }
 
+        //Debug.Log("new position: " + newPosition);
         return newPosition;
     }
 
@@ -187,8 +208,8 @@ public class ActionField : MonoBehaviour {
     private void InitializeGroundSprites()
     {
         //loop through the ground array to create ground sprites
-        float offsetX = sizeOfSprite;
-        float offsetY = sizeOfSprite;
+        float offsetX = 0;
+        float offsetY = 0;
         for (int i = 0; i < maxGroundSpritesY; i++)
         {
             for (int j = 0; j < maxGroundSpritesX; j++)
@@ -199,16 +220,17 @@ public class ActionField : MonoBehaviour {
 
                     //find the position of where the sprite should go, according to the center
                     Vector3 groundPosition = center;
-                    groundPosition.x = offsetX + fieldX;
-                    groundPosition.y = offsetY + fieldY;
+                    groundPosition.x = offsetX + leftField;
+                    groundPosition.y = offsetY + topField;
                     offsetX += sizeOfSprite;
 
                     //create the new sprite
                     groundSprites[i, j] = new GroundSprite();
                     groundSprites[i,j].NewGroundSprite(groundPosition);
+                    //Debug.Log("Initialized sprite at: " + groundSprites[i, j].position);
                 }
             }
-            offsetX = sizeOfSprite;
+            offsetX = 0;
             offsetY -= sizeOfSprite;
         }
     }
