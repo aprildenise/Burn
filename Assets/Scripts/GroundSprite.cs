@@ -6,6 +6,7 @@ using UnityEngine;
 //Note: Monobehavior removed from the class inheritance
 public class GroundSprite {
 
+    //fields
     public bool active; //true if gameobject exists, false if no gameobjects exists
     public Vector3 position; //coordinate position of the gameobject
     public GameObject reference; //reference to the gameobject of the sprite

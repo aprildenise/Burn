@@ -111,7 +111,7 @@ public class ActionField : MonoBehaviour {
                     //Not within the action field
                     //Delete the ground sprite and reposition it within the field
                     //Debug.Log("Need to repo sprite at: " + groundSprites[i,j].position);
-                    Vector3 newPosition = RepoGroundSprite(groundSprites[i, j].position);
+                    Vector3 newPosition = RepoGroundSprite(groundSprites[i, j].position, i, j);
                     groundSprites[i, j].DestroyGroundSprite();
                     groundSprites[i, j].NewGroundSprite(newPosition);
                     //Debug.Log("New sprite placed at: " + groundSprites[i,j].position);
@@ -159,22 +159,36 @@ public class ActionField : MonoBehaviour {
 
 
     /* Given a ground sprite that is OUTSIDE the action field, put it within the action field
-     * Input: position of the ground sprite that is outside the action field
+     * Input: position of the ground sprite that is outside the action field, index of where the
+     * sprite is in the ground sprite array in order to find the correct place to 
+     * reposition in
      * Returns: new position of the ground sprite that is inside the action field
      */ 
-    private Vector3 RepoGroundSprite(Vector3 sprite)
+    private Vector3 RepoGroundSprite(Vector3 sprite, int i, int j)
     {
         Vector3 newPosition = sprite;
         //Find where the sprite needs to be repositioned
         if (sprite.x < leftField)
         {
             //sprite is beyond the left side of the field, can be put on the right side of the field
-            newPosition.x = rightField;
+            //newPosition.x = rightField;
+            j--;
+            if (j < 0)
+            {
+                j = maxGroundSpritesX - 1;
+            }
+            newPosition.x = groundSprites[i, j].position.x + sizeOfSprite;
         }
         else if (sprite.x > (center.x + ((fieldWidth)) / 100))
         {
             //sprite is beyond the right side of the field, can be put on the left side of the field
-            newPosition.x = leftField;
+            //newPosition.x = leftField;
+            j++;
+            if (j > maxGroundSpritesX - 1)
+            {
+                j = 0;
+            }
+            newPosition.x = groundSprites[i, j].position.x - sizeOfSprite;
         }
         else
         {
@@ -183,12 +197,24 @@ public class ActionField : MonoBehaviour {
         if (sprite.y < bottomField)
         {
             //sprite is beyond the bottom side of the field, can be put on the top side of the field
-            newPosition.y = topField;
+            //newPosition.y = topField;
+            i++;
+            if (i > maxGroundSpritesY - 1)
+            {
+                i = 0;
+            }
+            newPosition.y = groundSprites[i, j].position.y + sizeOfSprite;
         }
         else if (sprite.y > topField)
         {
             //sprite is beyond the top side of the field, can be put on the bottom side of the field
-            newPosition.y = bottomField;
+            //newPosition.y = bottomField;
+            i--;
+            if (i < 0)
+            {
+                i = maxGroundSpritesY - 1;
+            }
+            newPosition.y = groundSprites[i, j].position.y - sizeOfSprite;
         }
         else
         {
