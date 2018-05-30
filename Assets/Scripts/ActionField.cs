@@ -20,18 +20,18 @@ public class ActionField : MonoBehaviour {
     private float rightField;
     private float topField;
     private float bottomField;
-    private Vector3 field; //Vector3 coordinates of the top left corner of the action field
+    //private Vector3 field; //Vector3 coordinates of the top left corner of the action field
 
-    int numGroundSprites; //current number of ground sprites
-    int maxGroundSprites; //max number of ground sprites
+    //int maxGroundSprites; //max number of ground sprites
     int maxGroundSpritesX; //max number of ground sprites on the X field
     int maxGroundSpritesY; //max number of ground sprites on the Y field
     GroundSprite[,] groundSprites;
 
-    float sizeOfSprite = 0.32f;
+    private float sizeOfSprite = 0.32f;
 
-
-    //bool tester = false;
+    private GameObject[] burnObjects;
+    private int maxBurnObjects = 50;
+    private int numBurnObjects; //current number of burning objects
 
 
 	// Use this for initialization
@@ -42,17 +42,20 @@ public class ActionField : MonoBehaviour {
         FindFieldWidth();
         leftField = ((fieldWidth)) / 100 * -1;
         topField = ((fieldHeight)) / 100;
-        field = new Vector3(leftField, topField, 0);
+        //field = new Vector3(leftField, topField, 0);
 
         //Debug.Log("field: " + field);
 
         //initialize ground sprite array and ground
-        maxGroundSprites = (int)((fieldHeight * fieldWidth) / 32f);
+        //maxGroundSprites = (int)((fieldHeight * fieldWidth) / 32f);
         maxGroundSpritesX = (int)(fieldWidth / 32f) * 2;
         maxGroundSpritesY = (int)(fieldHeight / 32f) * 2;
 
         groundSprites = new GroundSprite[maxGroundSpritesY, maxGroundSpritesX];
         InitializeGroundSprites();
+
+        //initialize the burning objects array
+        burnObjects = new GameObject[maxBurnObjects];
 
 	}
 	
@@ -68,14 +71,13 @@ public class ActionField : MonoBehaviour {
         rightField = center.x + ((fieldWidth)) / 100;
         topField = center.y + ((fieldHeight)) / 100;
         bottomField = center.y - ((fieldHeight)) / 100;
-        field = new Vector3(leftField, topField, 0);
+        //field = new Vector3(leftField, topField, 0);
 
         //Debug.Log("field: " + field);
 
         //Update the ground sprites within the action field
         UpdateGroundSprites();
-
-
+        UpdateBurnObjects();
     }
 
 
@@ -280,6 +282,7 @@ public class ActionField : MonoBehaviour {
 
 
 
+
     /* Find the correct value for the height of the action field
     * Action field must be a multiple of 32 in order to fit sprites
      * within the field
@@ -295,5 +298,96 @@ public class ActionField : MonoBehaviour {
     }
 
 
+
+
+    /* Spawn Burnable Objects witin the action field, in random positions.
+     * Will check and reposition a Burnable Object if it is in the
+     * same position as another burnable object
+     */
+    private IEnumerator UpdateBurnObjects()
+    {
+        
+        while (numBurnObjects < maxBurnObjects)
+        {
+            //Instantiate prefabs of the burnable object and put them into the array
+            for (int i = 0; i < numBurnObjects; i++)
+            {
+                //Instantiate the gameobject and place it somewhere
+                Vector3 firstPos = new Vector3(Random.Range(leftField, rightField), Random.Range(bottomField, topField));
+                GameObject burnObject = InitializeBrnObjects(firstPos);
+
+                //Check if this position is not overlapping with that of another object
+                while (HasCollision(burnObject))
+                {
+                    //If there is overlapping, reposition the gameobject and check again
+                    Vector3 newPos = new Vector3(Random.Range(leftField, rightField), Random.Range(bottomField, topField));
+                    burnObject.GetComponent<Transform>().position = newPos;
+                }
+
+                //If no overlapping, add the gamemobject to the array and enable
+                burnObjects[i] = burnObject;
+                burnObject.SetActive(true);
+                numBurnObjects++;
+            }
+            
+        }
+
+        yield return null;
+
+    }
+
+
+
+    /* Check whether a burnable object that was recently placed is overlapping
+     * another burnable object
+     * Input: position of the burnable object in question
+     * Output: true if the given position is overlapping with another object
+     * false if it is not.
+     */
+    bool HasCollision(GameObject burnObject)
+    {
+        //Loop through the burnobjects array and see if one of the objects intersects bounds
+        //with the position in question
+        for (int i = 0; i < numBurnObjects; i++)
+        {
+            Bounds existingObject = burnObjects[i].GetComponent<PolygonCollider2D>().bounds;
+            if (burnObject.GetComponent<PolygonCollider2D>().bounds.Intersects(existingObject))
+            {
+                //The given burn object intersects with another existing object
+                return true;
+            }
+        }
+        //no intersection
+        return false;
+    }
+
+
+    
+    /* Randomly choose a prefab from the resources folder and returns that 
+     * gameobject
+     */
+    GameObject InitializeBrnObjects(Vector3 position)
+    {
+
+        GameObject thing;
+        int temp = Random.Range(1, 7);
+        string directory = "Prefabs/BurnableObject" + temp;
+        thing = Instantiate(Resources.Load(directory), position, Quaternion.identity) as GameObject;
+        thing.SetActive(false); //disable the gameobject for the meantime until UpdateBurnObjects finds a place to put it
+        return thing;
+
+    }
+
+
+
+    /* Delete any burnable objects that lie outside the action field
+     * 
+     */
+    IEnumerator DeleteBrnObjects()
+    {
+
+
+        yield return null;
+    }
 
 }

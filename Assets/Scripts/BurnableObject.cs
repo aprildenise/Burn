@@ -9,13 +9,14 @@ public class BurnableObject : MonoBehaviour {
     //public string name; //optional
     public int dimensions; //dimensions of the object, usually the dimensions of the sprite
 
-    private float interactionRadius = 1.0f;
+    private float interactionRadius = 2.0f;
 
     public float burnTime; //duration in which the object remains burning until it is deleted
     public bool isBurning = false; //if the object is burning
 
-    private int notBurningLayer = 8; //Used with raycasting. All BurnableObjects begin with this layer (set during initialization)
-    private int burningLayer = 9; //Used with raycasting. All BurnableObjects are put in this layer when burning
+    public LayerMask notBurningLayer; //Used with raycasting. All BurnableObjects begin with this layer (set during initialization)
+    public LayerMask burningLayer; //Used with raycasting. All BurnableObjects are put in this layer when burning
+    //public LayerMask currentLayer;
 
 
 
@@ -56,18 +57,25 @@ public class BurnableObject : MonoBehaviour {
     {
         if (isBurning)
         {
-            RaycastHit2D hit;
-            Vector2 playerPosition = new Vector2(player.position.x,player.position.y);
+            Collider2D hit;
 
             //If the raycast colliders with another gameobject that is not burning
-            hit = Physics2D.CircleCast(playerPosition, interactionRadius, new Vector3(0, 0, 0), 0f, notBurningLayer);
+            //hit = Physics2D.CircleCast(playerPosition, interactionRadius, new Vector3(0, 0, 0), 0f, notBurningLayer);
+            hit = Physics2D.OverlapCircle(gameObject.transform.position, interactionRadius, notBurningLayer.value);
             if (hit)
             {
+                Debug.Log("Spreading...");
                 //spread the fire to this object and make it burn as well
                 GameObject thing = hit.transform.gameObject;
                 BurnableObject burningThing;
                 burningThing = thing.GetComponent<BurnableObject>();
+                burningThing.burnTime += 5f;
                 burningThing.Burn();
+
+            }
+            else
+            {
+                Debug.Log("No spread...");
             }
         }
     }
@@ -78,7 +86,7 @@ public class BurnableObject : MonoBehaviour {
      */
     public void Burn()
     {
-        changeLayer(burningLayer);
+        changeLayer(9);
         isBurning = true;
         StartCoroutine("Wait");
         //Destroy this object once it is finished burning
