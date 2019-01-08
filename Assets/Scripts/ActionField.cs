@@ -2,160 +2,232 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-
-
-/* Defines the "Action Field" of the player. More on Action Field in documentation.
- * Action Field follows the Player and moves in a similar way to the Main Camera
- */
 public class ActionField : MonoBehaviour {
 
-
-    //Global variables
+	//Global variables
     public Transform player;
 
-    Vector3 center; //the center of the action field (player's position)
+	//sizes of the field
+	private GameObject[,] groundTiles; 
+    private Vector3 center; //the center of the action field (player's position)
     private float fieldHeight;
     private float fieldWidth;
+
     private float leftField;
     private float rightField;
     private float topField;
     private float bottomField;
-    //private Vector3 field; //Vector3 coordinates of the top left corner of the action field
 
-    //int maxGroundSprites; //max number of ground sprites
-    int maxGroundSpritesX; //max number of ground sprites on the X field
-    int maxGroundSpritesY; //max number of ground sprites on the Y field
-    GroundSprite[,] groundSprites;
+	private int maxGroundTilesX; //max number of ground sprites on the X field
+    private int maxGroundTilesY; //max number of ground sprites on the Y field
 
-    private float sizeOfSprite = 0.32f;
+    //sizes of the player's pov
 
-    private GameObject[] burnObjects;
-    private int maxBurnObjects = 50;
-    private int numBurnObjects; //current number of burning objects
+	private float sizeOfSprite;
+
+    //for burnables
+    private int burnableLayerMask;
+    private GameObject[] burnables;
+    public int maxBurnables;
+
 
 
 	// Use this for initialization
 	void Start () {
 
-        //initialize the action field
-        FindFieldHeight();
+        center = player.position;
+        sizeOfSprite = 1f; //dimensions of the sprites. They are 64 x 64 pixels
+		
+        //create the initial action field
+		
+		FindFieldHeight();
         FindFieldWidth();
+
         leftField = ((fieldWidth)) / 100 * -1;
         topField = ((fieldHeight)) / 100;
-        //field = new Vector3(leftField, topField, 0);
+        rightField = center.x + ((fieldWidth)) / 100;
+        bottomField = center.y - ((fieldHeight)) / 100;
 
-        //Debug.Log("field: " + field);
+		maxGroundTilesX = (int)(fieldWidth / 100f) * 2;
+        maxGroundTilesY = (int)(fieldHeight / 100f) * 2;
 
-        //initialize ground sprite array and ground
-        //maxGroundSprites = (int)((fieldHeight * fieldWidth) / 32f);
-        maxGroundSpritesX = (int)(fieldWidth / 32f) * 2;
-        maxGroundSpritesY = (int)(fieldHeight / 32f) * 2;
+		groundTiles = new GameObject[maxGroundTilesY, maxGroundTilesX];
+		InitGroundTiles();
 
-        groundSprites = new GroundSprite[maxGroundSpritesY, maxGroundSpritesX];
-        InitializeGroundSprites();
+        //create the burnable objects
+        burnableLayerMask = LayerMask.GetMask("Burnable");
+        burnables = new GameObject[maxBurnables];
+        InitBurnableObjects();
 
-        //initialize the burning objects array
-        burnObjects = new GameObject[maxBurnObjects];
 
 	}
 	
-
-
-
 	// Update is called once per frame
 	void Update () {
-        center = player.position; //true center of the field
+
+		//move the actionfield as needed
+		center = player.position; //true center of the field
 
         //Update the X and Y coordinates of the action field
         leftField = center.x - ((fieldWidth)) / 100;
         rightField = center.x + ((fieldWidth)) / 100;
         topField = center.y + ((fieldHeight)) / 100;
         bottomField = center.y - ((fieldHeight)) / 100;
-        //field = new Vector3(leftField, topField, 0);
-
-        //Debug.Log("field: " + field);
 
         //Update the ground sprites within the action field
-        UpdateGroundSprites();
-        UpdateBurnObjects();
-    }
+        UpdateGroundTiles();
+        UpdateBurnables();
+		
+	}
 
 
+    private void UpdateBurnables(){
+        //loop through the burnables array to create new burnables
+        for (int i = 0; i < maxBurnables; i++){
 
+            Burnable component = burnables[i].gameObject.transform.GetChild(0).GetComponent<Burnable>();
+            if (component.isBurning){
+                //do not need to reposition it. just place a new one elsewhere
+                Vector2 oldPosition = new Vector2(burnables[i].transform.position.x + 200f, burnables[i].transform.position.y);
+                Vector2 newPosition = RepoBurnable(oldPosition);
+                GameObject newBurnable = ChooseBurnable();
+                newBurnable.GetComponent<Transform>().position = newPosition;
 
-    //Gui to see the action field. Used for debugging
-    private void OnGUI()
-    {
-        GUI.Box(new Rect(center.x, (center.y * -1), fieldWidth, fieldHeight), "Action Field");
-    }
+                burnables[i] = Instantiate(newBurnable, newPosition, Quaternion.identity, GameObject.Find("Burnables").transform) as GameObject;
+                continue;
+            }
 
+            if (WithinActionField(burnables[i].transform.position)){
+                //do nothing
+            }
+            else{
+                //not within the action field
+                //delete the ground sprite and place a new one that is within the field
+                GameObject toDestroy = burnables[i];
+                Vector2 newPosition = RepoBurnable(burnables[i].transform.position);
 
- 
-    /* Destroy grounf sprites that are outside the action field and place new
-     * ground sprites within the action field
-     */
-    private void UpdateGroundSprites()
-    {
-        //loop through the ground array to create ground sprites
-        for (int i = 0; i < maxGroundSpritesY; i++)
-        {
-            for (int j = 0; j < maxGroundSpritesX; j++)
-            {
-                //Check if this sprite is within the action field
-                if (WithinActionField(groundSprites[i,j].position))
-                {
-                    //Within the action field
-                    //Do nothing (may be changed later)
-                    //Debug.Log("witin field");
-                }
-                else
-                {
-                    //Not within the action field
-                    //Delete the ground sprite and reposition it within the field
-                    //Debug.Log("Need to repo sprite at: " + groundSprites[i,j].position);
-                    Vector3 newPosition = RepoGroundSprite(groundSprites[i, j].position, i, j);
-                    groundSprites[i, j].DestroyGroundSprite();
-                    groundSprites[i, j].NewGroundSprite(newPosition);
-                    //Debug.Log("New sprite placed at: " + groundSprites[i,j].position);
-                    //tester = true;
-                }
+                GameObject newBurnable = ChooseBurnable();
+                newBurnable.GetComponent<Transform>().position = newPosition;
+
+                burnables[i] = Instantiate(newBurnable, newPosition, Quaternion.identity, GameObject.Find("Burnables").transform) as GameObject;
+
+                Destroy(toDestroy);
             }
         }
     }
 
 
+	private void UpdateGroundTiles(){
+        //loop through the ground array to create ground sprites
+        for (int i = 0; i < maxGroundTilesY; i++)
+        {
+            for (int j = 0; j < maxGroundTilesX; j++)
+            {
+                //Check if this sprite is within the action field
+                if (WithinActionField(groundTiles[i,j].transform.position))
+                {
+                    //Within the action field
+                    //Do nothing (may be changed later)
+                }
+                else
+                {
+                    //Not within the action field
+                    //Delete the ground sprite and reposition it within the field
+                    Vector3 newPosition = RepoGroundSprite(groundTiles[i, j].transform.position, i, j);
+        
+
+					Destroy(groundTiles[i, j].gameObject);
+
+					//create the new tile and put it at the given position
+					GameObject tile = ChooseGroundTile();
+					tile.GetComponent<Transform>().position = newPosition;
+
+					//add it to the groundTiles array
+					//instantiate  into the scene
+					groundTiles[i, j] = Instantiate(tile, newPosition, Quaternion.identity, GameObject.Find("Tiles").transform) as GameObject;
+                }
+            }
+        }
+	}
 
 
-    /* Check if a sprite is within the rectangular action fied by comparing the x and y coordinates
-     * Input: Vector3 position of a specific sprite
-     * Returns true if it is in the action field and false otherwise
+
+    /* Given a ground sprite that is OUTSIDE the action field, put it within the action field
+     * BUT OUTSIDE the field of view of the player
      */
-    private bool WithinActionField(Vector3 sprite)
-    {
-        if (sprite.x < leftField)
-        {
-            //sprite is beyond the left side of the field
-            return false;
-        }
-        else if (sprite.x > rightField)
-        {
-            //sprite is beyond the right side of the field
-            return false;
-        }
-        else if (sprite.y > topField)
-        {
-            //sprite is beyond the top side of the field
-            return false;
-        }
-        else if (sprite.y < bottomField)
-        {
-            //sprite is beyond the bottom side of the field
-            return false;
+    private Vector2 RepoBurnable(Vector2 burnable){
+        Vector2 newPosition = burnable;
+        //randomly pic a place to spawn into the field
+        float leftBorder = leftField;
+        float rightBorder = rightField;
+        float topBorder = topField;
+        float bottomBorder = bottomField;
+
+        int tries = 5;
+
+        //burnable is beyond the leftfield. put it somewhere on the right
+        if (burnable.x < leftField){
+            //leftBorder = rightBorder;
+            //rightBorder = rightBorder + 100;
+
+            leftBorder = rightBorder;
         }
 
-        //else, it is within range, return true
-        return true;
+        //burnable is beyonf the rightfield. put it somewhere on the left
+        else if (burnable.x > (center.x + ((fieldWidth)) / 100)){
+            // leftBorder = leftBorder - 100;
+            // rightBorder = leftBorder;
+            rightBorder = leftBorder;
+        }
+
+        else{
+            //nothing for now
+        }
+
+        //burnable is beyond the bottomfield. put it somewhere on the top
+        if (burnable.y < bottomField){
+            // bottomBorder = topBorder;
+            // topBorder = topBorder + 100;
+
+            bottomBorder = topField;
+        }
+
+        //burnable is beyond the topfield. put it somewhere on the bottom
+        else if(burnable.y > topField){
+            // topBorder = bottomBorder;
+            // bottomField = bottomBorder - 100;
+
+            topBorder = bottomBorder;
+        }
+
+        else{
+            //nothing for now
+        }
+
+        bool validPosition = false;
+        while (!validPosition && tries != 0){
+            float randx = Random.Range(leftBorder, rightBorder);
+            float randy = Random.Range(bottomBorder, topBorder);
+            newPosition = new Vector2 (randx, randy);
+
+            //check if there is no other burnable object already here
+            Collider2D hit = Physics2D.OverlapCircle(newPosition, 1f, burnableLayerMask);
+            if (hit == null){
+                validPosition = true;
+            }
+            tries--;
+            //if out of tries, can place outside the field and try again
+            if (tries == 0){
+                leftBorder += 100;
+                rightBorder += 100;
+                topBorder += 100;
+                bottomBorder += 100;
+                tries = 5;
+            }
+        }
+        return newPosition;
     }
+
 
 
 
@@ -166,57 +238,57 @@ public class ActionField : MonoBehaviour {
      * reposition in
      * Returns: new position of the ground sprite that is inside the action field
      */ 
-    private Vector3 RepoGroundSprite(Vector3 sprite, int i, int j)
+    private Vector3 RepoGroundSprite(Vector3 tile, int i, int j)
     {
-        Vector3 newPosition = sprite;
+        Vector3 newPosition = tile;
         //Find where the sprite needs to be repositioned
-        if (sprite.x < leftField)
+        if (tile.x < leftField)
         {
             //sprite is beyond the left side of the field, can be put on the right side of the field
             //newPosition.x = rightField;
             j--;
             if (j < 0)
             {
-                j = maxGroundSpritesX - 1;
+                j = maxGroundTilesX - 1;
             }
-            newPosition.x = groundSprites[i, j].position.x + sizeOfSprite;
+            newPosition.x = groundTiles[i, j].transform.position.x + sizeOfSprite;
         }
-        else if (sprite.x > (center.x + ((fieldWidth)) / 100))
+        else if (tile.x > (center.x + ((fieldWidth)) / 100))
         {
             //sprite is beyond the right side of the field, can be put on the left side of the field
             //newPosition.x = leftField;
             j++;
-            if (j > maxGroundSpritesX - 1)
+            if (j > maxGroundTilesX - 1)
             {
                 j = 0;
             }
-            newPosition.x = groundSprites[i, j].position.x - sizeOfSprite;
+            newPosition.x = groundTiles[i, j].transform.position.x - sizeOfSprite;
         }
         else
         {
             //nothing for now
         }
-        if (sprite.y < bottomField)
+        if (tile.y < bottomField)
         {
             //sprite is beyond the bottom side of the field, can be put on the top side of the field
             //newPosition.y = topField;
             i++;
-            if (i > maxGroundSpritesY - 1)
+            if (i > maxGroundTilesY - 1)
             {
                 i = 0;
             }
-            newPosition.y = groundSprites[i, j].position.y + sizeOfSprite;
+            newPosition.y = groundTiles[i, j].transform.position.y + sizeOfSprite;
         }
-        else if (sprite.y > topField)
+        else if (tile.y > topField)
         {
             //sprite is beyond the top side of the field, can be put on the bottom side of the field
             //newPosition.y = bottomField;
             i--;
             if (i < 0)
             {
-                i = maxGroundSpritesY - 1;
+                i = maxGroundTilesY - 1;
             }
-            newPosition.y = groundSprites[i, j].position.y - sizeOfSprite;
+            newPosition.y = groundTiles[i, j].transform.position.y - sizeOfSprite;
         }
         else
         {
@@ -228,22 +300,68 @@ public class ActionField : MonoBehaviour {
     }
 
 
+	/* Check if a sprite is within the rectangular action fied by comparing the x and y coordinates
+     * Input: Vector3 position of a specific sprite
+     * Returns true if it is in the action field and false otherwise
+     */
+    private bool WithinActionField(Vector3 tile)
+    {
+        if (tile.x < leftField)
+        {
+            //sprite is beyond the left side of the field
+            return false;
+        }
+        else if (tile.x > rightField)
+        {
+            //sprite is beyond the right side of the field
+            return false;
+        }
+        else if (tile.y > topField)
+        {
+            //sprite is beyond the top side of the field
+            return false;
+        }
+        else if (tile.y < bottomField)
+        {
+            //sprite is beyond the bottom side of the field
+            return false;
+        }
+
+        //else, it is within range, return true
+        return true;
+    }
 
 
+	/* Choose one of the program's 5 ground prefabs to load into the scene
+	 * Return the prefab that was chosen
+	 */
+	private GameObject ChooseGroundTile(){
+
+		GameObject tile = null;
+
+		//randomize a tile to choose from
+		int temp = Random.Range(1, 6);
+		string dir = "Prefabs/ground" + temp;
+		tile = Resources.Load<GameObject>(dir) as GameObject;
+
+		return tile;
+	}
+
+	
 
     /* Spawn ground sprite game objects within the action field at start
      */
-    private void InitializeGroundSprites()
+    private void InitGroundTiles()
     {
-        //loop through the ground array to create ground sprites
+        //loop through the ground array to create ground tiles
         float offsetX = 0;
         float offsetY = 0;
-        for (int i = 0; i < maxGroundSpritesY; i++)
+        for (int i = 0; i < maxGroundTilesY; i++)
         {
-            for (int j = 0; j < maxGroundSpritesX; j++)
+            for (int j = 0; j < maxGroundTilesX; j++)
             {
-                //add sprites to the action field
-                if (groundSprites[i,j] == null) //if there is no groundSprite already in this index
+                //add tiles to the action field
+                if (groundTiles[i,j] == null) //if there is no groundTiles already in this index
                 {
 
                     //find the position of where the sprite should go, according to the center
@@ -252,10 +370,13 @@ public class ActionField : MonoBehaviour {
                     groundPosition.y = offsetY + topField;
                     offsetX += sizeOfSprite;
 
-                    //create the new sprite
-                    groundSprites[i, j] = new GroundSprite();
-                    groundSprites[i,j].NewGroundSprite(groundPosition);
-                    //Debug.Log("Initialized sprite at: " + groundSprites[i, j].position);
+                    //create the new tile and put it at the given position
+					GameObject tile = ChooseGroundTile();
+					tile.GetComponent<Transform>().position = groundPosition;
+
+					//add it to the groundTiles array
+					//instantiate  into the scene
+					groundTiles[i, j] = Instantiate(tile, groundPosition, Quaternion.identity, GameObject.Find("Tiles").transform) as GameObject;
                 }
             }
             offsetX = 0;
@@ -264,16 +385,57 @@ public class ActionField : MonoBehaviour {
     }
 
 
+    private void InitBurnableObjects(){
+
+        //randomly pic a place to spawn into the field
+        for (int i = 0; i < maxBurnables; i++){
+            bool validPosition = false;
+            Vector2 position = new Vector2(0f,0f);
+            while (!validPosition){
+                float randx = Random.Range(leftField, rightField);
+                float randy = Random.Range(bottomField, topField);
+                position = new Vector2 (randx, randy);
+
+                //check if there is no other burnable object already here
+                Collider2D hit = Physics2D.OverlapCircle(position, 1f, burnableLayerMask);
+                if (hit == null){
+                    validPosition = true;
+                }
+            }
+            //if this is a valid position, then place the burnable here
+            GameObject burnable = ChooseBurnable();
+            burnable.GetComponent<Transform>().position = position;
+
+            //add to the burnables array
+            burnables[i] = Instantiate(burnable, position, Quaternion.identity, GameObject.Find("Burnables").transform) as GameObject;
+
+        }
+
+    }
 
 
-    /* Find the correct value for the height of the action field
-     * Action field must be a multiple of 32 in order to fit sprites
+    private GameObject ChooseBurnable(){
+        GameObject burnable = null;
+
+        //return an object to choose from
+        //int temp = Random.Range(1,4);
+        int temp  = 1;
+        string dir = "Prefabs/object" + temp;
+        burnable = Resources.Load<GameObject>(dir) as GameObject;
+
+        return burnable;
+    }
+
+
+
+	/* Find the correct value for the height of the action field
+     * Action field must be a multiple of 64 in order to fit sprites
      * within the field
      */
     private void FindFieldHeight()
     {
         float minFieldHeight = Screen.height + 100;
-        while (minFieldHeight % 32 != 0)
+        while (minFieldHeight % 100 != 0)
         {
             minFieldHeight++;
         }
@@ -281,113 +443,18 @@ public class ActionField : MonoBehaviour {
     }
 
 
-
-
-    /* Find the correct value for the height of the action field
-    * Action field must be a multiple of 32 in order to fit sprites
+	/* Find the correct value for the height of the action field
+     * Action field must be a multiple of 64 in order to fit sprites
      * within the field
     */
     private void FindFieldWidth()
     {
         float minFieldWidth = Screen.width + 100;
-        while (minFieldWidth % 32 != 0)
+        while (minFieldWidth % 100 != 0)
         {
             minFieldWidth++;
         }
         fieldWidth = minFieldWidth;
-    }
-
-
-
-
-    /* Spawn Burnable Objects witin the action field, in random positions.
-     * Will check and reposition a Burnable Object if it is in the
-     * same position as another burnable object
-     */
-    private IEnumerator UpdateBurnObjects()
-    {
-        
-        while (numBurnObjects < maxBurnObjects)
-        {
-            //Instantiate prefabs of the burnable object and put them into the array
-            for (int i = 0; i < numBurnObjects; i++)
-            {
-                //Instantiate the gameobject and place it somewhere
-                Vector3 firstPos = new Vector3(Random.Range(leftField, rightField), Random.Range(bottomField, topField));
-                GameObject burnObject = InitializeBrnObjects(firstPos);
-
-                //Check if this position is not overlapping with that of another object
-                while (HasCollision(burnObject))
-                {
-                    //If there is overlapping, reposition the gameobject and check again
-                    Vector3 newPos = new Vector3(Random.Range(leftField, rightField), Random.Range(bottomField, topField));
-                    burnObject.GetComponent<Transform>().position = newPos;
-                }
-
-                //If no overlapping, add the gamemobject to the array and enable
-                burnObjects[i] = burnObject;
-                burnObject.SetActive(true);
-                numBurnObjects++;
-            }
-            
-        }
-
-        yield return null;
-
-    }
-
-
-
-    /* Check whether a burnable object that was recently placed is overlapping
-     * another burnable object
-     * Input: position of the burnable object in question
-     * Output: true if the given position is overlapping with another object
-     * false if it is not.
-     */
-    bool HasCollision(GameObject burnObject)
-    {
-        //Loop through the burnobjects array and see if one of the objects intersects bounds
-        //with the position in question
-        for (int i = 0; i < numBurnObjects; i++)
-        {
-            Bounds existingObject = burnObjects[i].GetComponent<PolygonCollider2D>().bounds;
-            if (burnObject.GetComponent<PolygonCollider2D>().bounds.Intersects(existingObject))
-            {
-                //The given burn object intersects with another existing object
-                return true;
-            }
-        }
-        //no intersection
-        return false;
-    }
-
-
-    
-    /* Randomly choose a prefab from the resources folder and returns that 
-     * gameobject
-     */
-    GameObject InitializeBrnObjects(Vector3 position)
-    {
-
-        GameObject thing;
-        int temp = Random.Range(1, 7);
-        string directory = "Prefabs/BurnableObject" + temp;
-        thing = Instantiate(Resources.Load(directory), position, Quaternion.identity) as GameObject;
-        thing.SetActive(false); //disable the gameobject for the meantime until UpdateBurnObjects finds a place to put it
-        return thing;
-
-    }
-
-
-
-    /* Delete any burnable objects that lie outside the action field
-     * 
-     */
-    IEnumerator DeleteBrnObjects()
-    {
-
-
-        yield return null;
     }
 
 }

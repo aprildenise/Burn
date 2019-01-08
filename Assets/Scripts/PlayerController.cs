@@ -11,27 +11,37 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour {
 
+
+
+    //for player movement
+    private bool isMoving;
+    private Vector2 lastMove;
     private float moveSpeed;
     private Rigidbody2D player;
-    bool isMoving = false;
-    bool isPaused = false;
+    private Animator animator; 
+
+    //for pausing
+    private bool isPaused = false;
 
 
     // Use this for initialization
     void Start () {
         player = GetComponent<Rigidbody2D>();
-        moveSpeed = 3.0f;
+        moveSpeed = 1.5f;
+        animator = GetComponent<Animator>();
+        isMoving = false;
 	}
 	
 	// Update is called once per frame
 	void Update () {
 
+
+        //check for movement input
         float inputX = Input.GetAxisRaw("Horizontal");
         float inputY = Input.GetAxisRaw("Vertical");
         //Burn button
         //Pause button
 
-        //Check for movement input
         if (Mathf.Abs(inputX) + Mathf.Abs(inputY) > 0 && isPaused == false)
         {
             isMoving = true;
@@ -45,6 +55,7 @@ public class PlayerController : MonoBehaviour {
         if (isMoving)
         {
             player.velocity = new Vector2(inputX * moveSpeed, inputY * moveSpeed);
+            lastMove = new Vector2(inputX, inputY);
         }
         else
         {
@@ -52,6 +63,12 @@ public class PlayerController : MonoBehaviour {
         }
 
 
+        //update the animator as needed
+        animator.SetFloat("MoveX", inputX);
+        animator.SetFloat("MoveY", inputY);
+        animator.SetBool("isMoving", isMoving);
+        animator.SetFloat("LastMoveX", lastMove.x);
+        animator.SetFloat("LastMoveY", lastMove.y);
 
 	}
 }

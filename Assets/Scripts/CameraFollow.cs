@@ -12,6 +12,8 @@ public class CameraFollow : MonoBehaviour
     public Vector3 offset; //location of the camera (set within unity)
 
 
+	/* Update the camera to follow wherever the target has gone
+	 */
     private void FixedUpdate()
     {
         Vector3 desiredPosition = target.position + offset; //camera's current position (set within unity) = target position
